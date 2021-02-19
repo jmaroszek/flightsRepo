@@ -1,0 +1,74 @@
+---
+title: "Flights and Departure Delays"
+author: "Jonah Maroszek"
+date: "2/19/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+```
+
+# Introduction 
+
+### Impact of Weather on Average Delay
+```{r Weather, echo=FALSE}
+flight_weather <-
+  flights %>%
+  inner_join(weather, by = c(
+    "origin" = "origin",
+    "year" = "year",
+    "month" = "month",
+    "day" = "day",
+    "hour" = "hour"
+  ))
+
+flight_weather %>%
+  group_by(precip) %>%
+  summarise(delay = mean(dep_delay, na.rm = TRUE)) %>%
+  ggplot(aes(x = precip, y = delay)) +
+  geom_line() + geom_point()
+```
+
+
+### Impact of Age of Plane on Average Delay
+```{r Age of Plane, echo=FALSE}
+planeStuff <- inner_join(flights,
+  select(planes, tailnum, plane_year = year), by = "tailnum") %>%
+  mutate(age = year - plane_year) %>% #calculate how old plane is 
+  filter(!is.na(age)) %>%
+  mutate(age = if_else(age > 25, 25L, age)) %>% #focus on planes younger than 25 years
+  group_by(age) %>%
+  summarise(
+    dep_delay_mean = mean(dep_delay, na.rm = TRUE),
+    n_dep_delay = sum(!is.na(dep_delay))
+  )
+
+ggplot(planeStuff, aes(x = age, y = dep_delay_mean)) +
+  geom_point() +
+  scale_x_continuous("Age of plane (years)", breaks = seq(0, 30, by = 10)) +
+  scale_y_continuous("Mean Departure Delay (minutes)")
+
+
+```
+
+
+### Impact of Destination on Average Delay 
+```{r Destination Delay, echo=FALSE, warning=FALSE}
+mean_dest_delay <- flights %>% 
+  group_by(dest) %>% 
+  summarize(mean_delay = mean(dep_delay, na.rm = TRUE)) %>% 
+  inner_join(airports, by = c(dest = "faa"))
+
+mean_dest_delay %>% 
+  ggplot(aes(lon,lat, color = mean_delay)) +
+  borders("state") + 
+  geom_point() +
+  coord_quickmap() +
+  xlab("longitude") +
+  ylab("latitude")
+  
+```
+
